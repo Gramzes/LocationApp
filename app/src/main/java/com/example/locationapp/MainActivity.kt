@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
 import android.os.Looper
+import android.view.View
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -30,16 +31,24 @@ class MainActivity : AppCompatActivity() {
     ) { permissions ->
         when {
             permissions.getOrDefault(permission.ACCESS_FINE_LOCATION, false) -> {
+                fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
                 checkLocationSettings()
             }
             permissions.getOrDefault(permission.ACCESS_COARSE_LOCATION, false) -> {
-                showFineLocationRequiredUI()
+                showSnackBar("Необходимо разрешение на точное местоположение",
+                    "Ок"){}
             } else -> {
-                showFuncDisabledUI()
+                showSnackBar("Невозможно определить местоположение без разрешения",
+                    "Ок"){}
             }
         }
     }
-
+    private val getLocationSettingsRequest = registerForActivityResult(ActivityResultContracts
+        .StartIntentSenderForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            startLocationUpdates()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,7 +63,26 @@ class MainActivity : AppCompatActivity() {
             }
         }
         binding.startUpdatesBtn.setOnClickListener {
-            checkPermissions()
+            when {
+                checkPermissions() -> {
+                    fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+                    checkLocationSettings()
+                }
+                shouldShowRequestPermissionRationale(permission.ACCESS_FINE_LOCATION) -> {
+                    showSnackBar("Необходимо разрешение", "Предоставить"){
+                        locationPermissionRequest.launch(
+                            arrayOf(permission.ACCESS_FINE_LOCATION, permission.ACCESS_COARSE_LOCATION))
+                    }
+                }
+                else -> {
+                    locationPermissionRequest.launch(
+                        arrayOf(permission.ACCESS_FINE_LOCATION, permission.ACCESS_COARSE_LOCATION))
+                }
+
+            }
+        }
+        binding.stopUpdatesBtn.setOnClickListener {
+            stopLocationUpdates()
         }
     }
     override fun onResume() {
@@ -66,6 +94,10 @@ class MainActivity : AppCompatActivity() {
         if (requestingLocationUpdates) stopLocationUpdates()
     }
 
+    fun showSnackBar(text: String, actionText: String, listener: View.OnClickListener){
+        Snackbar.make(binding.root, text, Snackbar.LENGTH_LONG)
+            .setAction(actionText, listener).show()
+    }
     fun showUI(){
         when{
             requestingLocationUpdates ->{
@@ -79,22 +111,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkPermissions(){
-        when{
-            ContextCompat.checkSelfPermission(this,
-                permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED -> {
-                fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-                checkLocationSettings()
-            }
-            shouldShowRequestPermissionRationale(permission.ACCESS_FINE_LOCATION) -> {
-                showInContextUI()
-            }
-            else -> {
-                locationPermissionRequest.launch(
-                    arrayOf(permission.ACCESS_FINE_LOCATION, permission.ACCESS_COARSE_LOCATION))
-            }
-        }
-    }
+    private fun checkPermissions() = ContextCompat.checkSelfPermission(this,
+            permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
     private fun checkLocationSettings(){
         locationRequest = createLocationRequest()
@@ -111,11 +129,8 @@ class MainActivity : AppCompatActivity() {
         task.addOnFailureListener { exception ->
             if (exception is ResolvableApiException){
                 try {
-                    registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-                        if (result.resultCode == RESULT_OK) {
-                            startLocationUpdates()
-                        }
-                    }.launch(IntentSenderRequest.Builder(exception.resolution).build())
+                    getLocationSettingsRequest
+                        .launch(IntentSenderRequest.Builder(exception.resolution).build())
                 } catch (sendEx: IntentSender.SendIntentException) {
                     // Ignore the error.
                 }
@@ -154,27 +169,5 @@ class MainActivity : AppCompatActivity() {
     private fun createLocationRequest() : LocationRequest {
         return LocationRequest
             .Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000).build()
-    }
-
-    private fun showFuncDisabledUI() {
-        Snackbar.make(binding.root,
-            "Невозможно определить местоположение без разрешения", Snackbar.LENGTH_LONG).setAction("Ok"){
-        }.show()
-    }
-
-    private fun showFineLocationRequiredUI() {
-        Snackbar.make(binding.root,
-            "Необходимо разрешение на точное местоположение", Snackbar.LENGTH_LONG).setAction("Ok"){
-            locationPermissionRequest.launch(
-                arrayOf(permission.ACCESS_FINE_LOCATION, permission.ACCESS_COARSE_LOCATION))
-        }.show()
-    }
-
-    private fun showInContextUI() {
-        Snackbar.make(binding.root,
-            "Необходимо разрешение", Snackbar.LENGTH_LONG).setAction("Ok"){
-            locationPermissionRequest.launch(
-                arrayOf(permission.ACCESS_FINE_LOCATION, permission.ACCESS_COARSE_LOCATION))
-        }.show()
     }
 }
