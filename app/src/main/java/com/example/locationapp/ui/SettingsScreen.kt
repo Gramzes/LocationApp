@@ -78,9 +78,30 @@ fun SettingsScreen(onBack: () -> Unit) {
                 )
                 Field(
                     label = "Модель",
-                    hint = "Например бесплатная: ${AiSettings.DEFAULT_OPENROUTER}",
+                    hint = "Вставьте точный id со страницы openrouter.ai/models (фильтр Free) " +
+                        "или выберите ниже. Если модель даёт 404 — попробуйте другую.",
                     value = openRouterModel,
                     onChange = { openRouterModel = it }
+                )
+                Text(
+                    "Быстрый выбор бесплатной модели:",
+                    color = TextSecondary,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+                )
+                AiSettings.OPENROUTER_FREE_PRESETS.forEach { preset ->
+                    ModelPreset(
+                        slug = preset,
+                        selected = preset == openRouterModel,
+                        onPick = { openRouterModel = preset }
+                    )
+                }
+                Text(
+                    "⚠ Для бесплатных моделей включите их использование в настройках " +
+                        "приватности: openrouter.ai/settings/privacy — иначе тоже будет 404.",
+                    color = TextMuted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 10.dp)
                 )
             } else {
                 Field(
@@ -123,6 +144,24 @@ private fun ProviderOption(title: String, selected: Boolean, onSelect: () -> Uni
     ) {
         RadioButton(selected = selected, onClick = onSelect)
         Text(title, color = TextPrimary, fontSize = 15.sp, modifier = Modifier.padding(start = 4.dp))
+    }
+}
+
+@Composable
+private fun ModelPreset(slug: String, selected: Boolean, onPick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp)
+            .background(if (selected) Brand else Surface, RoundedCornerShape(10.dp))
+            .clickable { onPick() }
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+    ) {
+        Text(
+            slug,
+            color = if (selected) Color.White else TextPrimary,
+            fontSize = 13.sp
+        )
     }
 }
 

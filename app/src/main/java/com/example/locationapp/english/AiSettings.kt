@@ -44,7 +44,21 @@ class AiSettings(context: Context) {
 
     companion object {
         const val DEFAULT_ANTHROPIC = "claude-opus-5"
-        // Бесплатная модель OpenRouter (можно сменить в настройках).
-        const val DEFAULT_OPENROUTER = "meta-llama/llama-3.3-70b-instruct:free"
+        // Бесплатная модель OpenRouter по умолчанию (можно сменить в настройках).
+        const val DEFAULT_OPENROUTER = "deepseek/deepseek-chat-v3-0324:free"
+
+        /**
+         * Популярные бесплатные модели OpenRouter для быстрого выбора.
+         * Слаги со временем меняются — если какая-то даёт 404, попробуйте другую
+         * или скопируйте точный id со страницы openrouter.ai/models (фильтр Free).
+         */
+        val OPENROUTER_FREE_PRESETS = listOf(
+            "deepseek/deepseek-chat-v3-0324:free",
+            "deepseek/deepseek-r1:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "google/gemini-2.0-flash-exp:free",
+            "qwen/qwen-2.5-72b-instruct:free",
+            "mistralai/mistral-small-3.2-24b-instruct:free"
+        )
     }
 }
