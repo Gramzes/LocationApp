@@ -2,8 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
@@ -14,8 +13,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.LocationApp"
         tools:targetApi="31">
+
         <activity
-            android:name=".english.HomeActivity"
+            android:name=".english.DeckListActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -23,15 +23,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <activity
-            android:name=".game.GameActivity"
-            android:exported="false"
-            android:screenOrientation="portrait" />
-
-        <activity
-            android:name=".english.DeckListActivity"
-            android:exported="false" />
 
         <activity
             android:name=".english.FlashcardActivity"
@@ -42,9 +33,17 @@
             android:exported="false" />
 
         <activity
-            android:name=".MainActivity"
+            android:name=".english.TypingActivity"
             android:exported="false" />
+
+        <activity
+            android:name=".english.AiAssistantActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".english.SettingsActivity"
+            android:exported="false" />
+
     </application>
-    
 
 </manifest>

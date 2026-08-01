@@ -4,8 +4,9 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
-    app:cardCornerRadius="14dp"
-    app:cardElevation="3dp">
+    app:cardCornerRadius="16dp"
+    app:cardElevation="3dp"
+    app:cardBackgroundColor="@color/surface">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -33,7 +34,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Набор"
-                android:textColor="#1A1A2E"
+                android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -43,7 +44,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:text="0 / 0 выучено"
-                android:textColor="#5A6472"
+                android:textColor="@color/text_secondary"
                 android:textSize="14sp" />
 
             <ProgressBar
@@ -54,7 +55,7 @@
                 android:layout_marginTop="8dp"
                 android:max="100"
                 android:progress="0"
-                android:progressTint="#3F6FE8" />
+                android:progressTint="@color/brand" />
         </LinearLayout>
 
     </LinearLayout>

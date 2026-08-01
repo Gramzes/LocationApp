@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg">
+
+    <TextView
+        style="@style/HeaderBar"
+        android:text="Настройки ИИ" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="API-ключ Anthropic"
+                android:textColor="@color/text_primary"
+                android:textStyle="bold"
+                android:textSize="16sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp"
+                android:text="Ключ хранится только на этом устройстве. Получить его можно на console.anthropic.com."
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp" />
+
+            <EditText
+                android:id="@+id/apiKeyInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="sk-ant-..."
+                android:inputType="textNoSuggestions|textVisiblePassword"
+                android:background="@drawable/input_bg"
+                android:padding="14dp"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_muted" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="Модель"
+                android:textColor="@color/text_primary"
+                android:textStyle="bold"
+                android:textSize="16sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp"
+                android:text="По умолчанию claude-opus-5. Для быстрых и дешёвых ответов можно указать claude-haiku-4-5."
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp" />
+
+            <EditText
+                android:id="@+id/modelInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="claude-opus-5"
+                android:inputType="textNoSuggestions"
+                android:background="@drawable/input_bg"
+                android:padding="14dp"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_muted" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/saveBtn"
+                style="@style/PillButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:text="Сохранить" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

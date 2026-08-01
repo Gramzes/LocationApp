@@ -7,7 +7,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.locationapp.databinding.ActivityDeckListBinding
 
-/** Экран со списком наборов карточек. По тапу предлагает выбрать режим: карточки или тест. */
+/** Главный экран: список наборов карточек. По тапу — выбор режима занятий. */
 class DeckListActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityDeckListBinding
@@ -19,6 +19,13 @@ class DeckListActivity : AppCompatActivity() {
         setContentView(binding.root)
         progress = Progress(this)
         binding.deckRecycler.layoutManager = LinearLayoutManager(this)
+
+        binding.settingsBtn.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+        binding.aiBtn.setOnClickListener {
+            startActivity(Intent(this, AiAssistantActivity::class.java))
+        }
     }
 
     override fun onResume() {
@@ -30,26 +37,40 @@ class DeckListActivity : AppCompatActivity() {
     }
 
     private fun showModeDialog(deck: Deck) {
-        val options = arrayOf("🃏 Карточки", "✅ Тест (выбор варианта)", "🔄 Сбросить прогресс")
+        val options = arrayOf(
+            "🃏 Карточки",
+            "✅ Тест: слово → перевод",
+            "🇬🇧 Тест: рус. → выбор англ.",
+            "⌨️ Ввод: рус. → напишите англ.",
+            "🔄 Сбросить прогресс"
+        )
         AlertDialog.Builder(this)
             .setTitle("${deck.emoji} ${deck.title}")
             .setItems(options) { _, which ->
                 when (which) {
-                    0 -> startActivity(
-                        Intent(this, FlashcardActivity::class.java)
-                            .putExtra(EXTRA_DECK_ID, deck.id)
-                    )
-                    1 -> startActivity(
-                        Intent(this, QuizActivity::class.java)
-                            .putExtra(EXTRA_DECK_ID, deck.id)
-                    )
-                    2 -> {
+                    0 -> open(FlashcardActivity::class.java, deck)
+                    1 -> openQuiz(deck, ruToEn = false)
+                    2 -> openQuiz(deck, ruToEn = true)
+                    3 -> open(TypingActivity::class.java, deck)
+                    4 -> {
                         progress.resetDeck(deck.id)
                         binding.deckRecycler.adapter?.notifyDataSetChanged()
                     }
                 }
             }
             .show()
+    }
+
+    private fun open(activity: Class<*>, deck: Deck) {
+        startActivity(Intent(this, activity).putExtra(EXTRA_DECK_ID, deck.id))
+    }
+
+    private fun openQuiz(deck: Deck, ruToEn: Boolean) {
+        startActivity(
+            Intent(this, QuizActivity::class.java)
+                .putExtra(EXTRA_DECK_ID, deck.id)
+                .putExtra(QuizActivity.EXTRA_RU_TO_EN, ruToEn)
+        )
     }
 
     companion object {

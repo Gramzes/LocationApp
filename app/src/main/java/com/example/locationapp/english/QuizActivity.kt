@@ -1,5 +1,6 @@
 package com.example.locationapp.english
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -9,8 +10,9 @@ import androidx.appcompat.app.AppCompatActivity
 import com.example.locationapp.databinding.ActivityQuizBinding
 
 /**
- * Режим теста: показывает английское слово и 4 варианта перевода.
- * За правильный ответ начисляется очко. В конце показывается результат и лучший счёт.
+ * Режим теста с выбором варианта. Поддерживает два направления:
+ *  - EN→RU: показывается английское слово, выбираем русский перевод;
+ *  - RU→EN: показывается русское слово, выбираем английское.
  */
 class QuizActivity : AppCompatActivity() {
 
@@ -20,6 +22,7 @@ class QuizActivity : AppCompatActivity() {
     private lateinit var order: List<Int>
     private lateinit var optionButtons: List<Button>
 
+    private var ruToEn = false
     private var index = 0
     private var score = 0
     private var answered = false
@@ -31,6 +34,7 @@ class QuizActivity : AppCompatActivity() {
         progress = Progress(this)
 
         val deckId = intent.getStringExtra(DeckListActivity.EXTRA_DECK_ID)
+        ruToEn = intent.getBooleanExtra(EXTRA_RU_TO_EN, false)
         val found = deckId?.let { DeckRepository.deckById(it) }
         if (found == null || found.cards.size < 4) {
             finish()
@@ -39,29 +43,36 @@ class QuizActivity : AppCompatActivity() {
         deck = found
         order = deck.cards.indices.shuffled()
         optionButtons = listOf(binding.option0, binding.option1, binding.option2, binding.option3)
+        binding.promptLabel.text = if (ruToEn) "Выберите перевод (англ.)" else "Как переводится?"
 
         showQuestion()
     }
+
+    /** Текст вопроса для карточки. */
+    private fun question(card: Card) = if (ruToEn) card.translation else card.term
+
+    /** Правильный ответ для карточки. */
+    private fun answer(card: Card) = if (ruToEn) card.term else card.translation
 
     private fun showQuestion() {
         answered = false
         val correctCard = deck.cards[order[index]]
         binding.progressText.text = "Вопрос ${index + 1} / ${order.size}   •   Очки: $score"
-        binding.questionText.text = correctCard.term
+        binding.questionText.text = question(correctCard)
 
-        // Собираем варианты: правильный + 3 случайных неверных.
+        val correct = answer(correctCard)
         val wrong = deck.cards
-            .filter { it.translation != correctCard.translation }
+            .filter { answer(it) != correct }
             .shuffled()
             .take(3)
-            .map { it.translation }
-        val options = (wrong + correctCard.translation).shuffled()
+            .map { answer(it) }
+        val options = (wrong + correct).shuffled()
 
         optionButtons.forEachIndexed { i, btn ->
             btn.text = options[i]
             btn.isEnabled = true
-            btn.setBackgroundColor(0xFF3F6FE8.toInt())
-            btn.setOnClickListener { onAnswer(btn, options[i], correctCard.translation) }
+            tint(btn, 0xFF4F6DF5.toInt())
+            btn.setOnClickListener { onAnswer(btn, options[i], correct) }
         }
     }
 
@@ -72,12 +83,11 @@ class QuizActivity : AppCompatActivity() {
         optionButtons.forEach { it.isEnabled = false }
         if (chosen == correct) {
             score++
-            clicked.setBackgroundColor(0xFF4CAF50.toInt())
+            tint(clicked, 0xFF22B573.toInt())
         } else {
-            clicked.setBackgroundColor(0xFFD9534F.toInt())
-            // Подсвечиваем правильный вариант зелёным.
+            tint(clicked, 0xFFE15241.toInt())
             optionButtons.firstOrNull { it.text.toString() == correct }
-                ?.setBackgroundColor(0xFF4CAF50.toInt())
+                ?.let { tint(it, 0xFF22B573.toInt()) }
         }
         binding.progressText.text = "Вопрос ${index + 1} / ${order.size}   •   Очки: $score"
 
@@ -106,5 +116,13 @@ class QuizActivity : AppCompatActivity() {
             .setNegativeButton("Выйти") { _, _ -> finish() }
             .setCancelable(false)
             .show()
+    }
+
+    private fun tint(btn: Button, color: Int) {
+        btn.backgroundTintList = ColorStateList.valueOf(color)
+    }
+
+    companion object {
+        const val EXTRA_RU_TO_EN = "ru_to_en"
     }
 }
