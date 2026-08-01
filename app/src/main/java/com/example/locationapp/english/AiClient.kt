@@ -128,7 +128,10 @@ class AiClient(private val settings: AiSettings) {
             }
         } catch (_: Exception) {
             null
-        }
-        return friendly ?: (detail?.takeIf { it.isNotBlank() }) ?: "Ошибка запроса ($code)"
+        }?.takeIf { it.isNotBlank() }
+        val base = friendly ?: "Ошибка запроса ($code)"
+        // Показываем и точный текст от провайдера — по нему видно настоящую причину
+        // (например, «No endpoints found» = у бесплатных моделей выключена приватность).
+        return if (detail != null && detail != base) "$base\n\n$detail" else base
     }
 }
