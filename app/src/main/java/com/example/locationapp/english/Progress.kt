@@ -1,44 +1,60 @@
 package com.example.locationapp.english
 
 import android.content.Context
+import org.json.JSONObject
 
 /**
- * Хранит прогресс изучения в SharedPreferences.
- * Для каждого набора помним, какие карточки (по индексу) отмечены как выученные,
- * а также лучший результат теста.
+ * Прогресс изучения с пословной статистикой.
+ * Для каждого набора хранит по каждой карточке число верных и неверных ответов —
+ * это позволяет показывать проблемные слова чаще.
  */
 class Progress(context: Context) {
 
-    private val prefs = context.getSharedPreferences("english_progress", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences("english_progress_v2", Context.MODE_PRIVATE)
 
-    private fun learnedKey(deckId: String) = "learned_$deckId"
-    private fun bestKey(deckId: String) = "best_$deckId"
-
-    /** Множество индексов выученных карточек в наборе. */
-    fun learnedIndices(deckId: String): MutableSet<Int> {
-        val raw = prefs.getStringSet(learnedKey(deckId), emptySet()) ?: emptySet()
-        return raw.mapNotNull { it.toIntOrNull() }.toMutableSet()
+    data class Stat(var correct: Int = 0, var wrong: Int = 0) {
+        /** Слово считается выученным после 2+ верных ответов при перевесе над ошибками. */
+        val isLearned: Boolean get() = correct - wrong >= 2
+        /** Проблемное — если ошибок больше, чем верных ответов. */
+        val isProblem: Boolean get() = wrong > 0 && wrong >= correct
     }
 
-    fun setLearned(deckId: String, index: Int, learned: Boolean) {
-        val set = learnedIndices(deckId)
-        if (learned) set.add(index) else set.remove(index)
-        prefs.edit()
-            .putStringSet(learnedKey(deckId), set.map { it.toString() }.toSet())
-            .apply()
+    private fun key(deckId: String) = "stats_$deckId"
+
+    fun stats(deckId: String): MutableMap<Int, Stat> {
+        val raw = prefs.getString(key(deckId), null) ?: return mutableMapOf()
+        val result = mutableMapOf<Int, Stat>()
+        try {
+            val obj = JSONObject(raw)
+            for (k in obj.keys()) {
+                val o = obj.getJSONObject(k)
+                result[k.toInt()] = Stat(o.optInt("c", 0), o.optInt("w", 0))
+            }
+        } catch (_: Exception) {
+        }
+        return result
     }
 
-    fun learnedCount(deckId: String): Int = learnedIndices(deckId).size
+    private fun save(deckId: String, map: Map<Int, Stat>) {
+        val obj = JSONObject()
+        for ((idx, s) in map) {
+            obj.put(idx.toString(), JSONObject().put("c", s.correct).put("w", s.wrong))
+        }
+        prefs.edit().putString(key(deckId), obj.toString()).apply()
+    }
+
+    fun record(deckId: String, index: Int, correct: Boolean) {
+        val map = stats(deckId)
+        val s = map.getOrPut(index) { Stat() }
+        if (correct) s.correct++ else s.wrong++
+        save(deckId, map)
+    }
+
+    fun learnedCount(deckId: String): Int = stats(deckId).values.count { it.isLearned }
+
+    fun problemCount(deckId: String): Int = stats(deckId).values.count { it.isProblem }
 
     fun resetDeck(deckId: String) {
-        prefs.edit().remove(learnedKey(deckId)).apply()
-    }
-
-    fun bestQuizScore(deckId: String): Int = prefs.getInt(bestKey(deckId), 0)
-
-    fun updateBestQuizScore(deckId: String, score: Int) {
-        if (score > bestQuizScore(deckId)) {
-            prefs.edit().putInt(bestKey(deckId), score).apply()
-        }
+        prefs.edit().remove(key(deckId)).apply()
     }
 }
