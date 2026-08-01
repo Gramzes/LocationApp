@@ -78,6 +78,50 @@ class AiClient(private val settings: AiSettings) {
         }
     }
 
+    /**
+     * Загружает актуальный список БЕСПЛАТНЫХ моделей OpenRouter с сервера
+     * (endpoint публичный). Возвращает id моделей, у которых цена ввода и вывода = 0
+     * или id оканчивается на ":free". Блокирующий вызов — запускать на фоне.
+     */
+    @Throws(IOException::class)
+    fun listFreeOpenRouterModels(): List<String> {
+        val conn = (URL("https://openrouter.ai/api/v1/models").openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 20000
+            readTimeout = 30000
+            setRequestProperty("content-type", "application/json")
+            if (settings.openRouterKey.isNotBlank()) {
+                setRequestProperty("Authorization", "Bearer ${settings.openRouterKey}")
+            }
+        }
+        try {
+            val code = conn.responseCode
+            val stream = if (code in 200..299) conn.inputStream else conn.errorStream
+            val text = stream?.let { readAll(it) } ?: ""
+            if (code !in 200..299) throw IOException(parseError(text, code))
+            val data = JSONObject(text).optJSONArray("data") ?: return emptyList()
+            val result = mutableListOf<String>()
+            for (i in 0 until data.length()) {
+                val m = data.optJSONObject(i) ?: continue
+                val id = m.optString("id")
+                if (id.isBlank()) continue
+                val pricing = m.optJSONObject("pricing")
+                val free = id.endsWith(":free") ||
+                    (pricing != null &&
+                        pricing.optString("prompt", "x") == "0" &&
+                        pricing.optString("completion", "x") == "0")
+                if (free) result.add(id)
+            }
+            return result.distinct().sorted()
+        } catch (e: IOException) {
+            throw e
+        } catch (e: Exception) {
+            throw IOException("Ошибка сети: ${e.message}")
+        } finally {
+            conn.disconnect()
+        }
+    }
+
     // --- Общая отправка ---
     private fun open(url: String): HttpURLConnection {
         return (URL(url).openConnection() as HttpURLConnection).apply {

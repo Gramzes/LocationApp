@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -21,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,19 +31,30 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.locationapp.english.AiClient
 import com.example.locationapp.english.AiProvider
 import com.example.locationapp.english.AiSettings
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val settings = remember { AiSettings(context) }
 
+    val scope = rememberCoroutineScope()
+    val client = remember { AiClient(settings) }
+
     var provider by remember { mutableStateOf(settings.provider) }
     var anthropicKey by remember { mutableStateOf(settings.anthropicKey) }
     var anthropicModel by remember { mutableStateOf(settings.anthropicModel) }
     var openRouterKey by remember { mutableStateOf(settings.openRouterKey) }
     var openRouterModel by remember { mutableStateOf(settings.openRouterModel) }
+
+    var liveModels by remember { mutableStateOf<List<String>>(emptyList()) }
+    var loadingModels by remember { mutableStateOf(false) }
+    var modelsError by remember { mutableStateOf<String?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().background(Bg)) {
         Header(title = "Настройки ИИ") {
@@ -83,26 +96,50 @@ fun SettingsScreen(onBack: () -> Unit) {
                     value = openRouterModel,
                     onChange = { openRouterModel = it }
                 )
+                Button(
+                    onClick = {
+                        settings.openRouterKey = openRouterKey // сохраняем ключ перед запросом
+                        loadingModels = true
+                        modelsError = null
+                        scope.launch {
+                            val r = withContext(Dispatchers.IO) {
+                                runCatching { client.listFreeOpenRouterModels() }
+                            }
+                            loadingModels = false
+                            r.onSuccess { list ->
+                                liveModels = list
+                                if (list.isEmpty()) modelsError = "Список пуст"
+                            }.onFailure { modelsError = it.message }
+                        }
+                    },
+                    enabled = !loadingModels,
+                    colors = ButtonDefaults.buttonColors(containerColor = Green),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                ) { Text("🔄 Загрузить актуальные бесплатные модели", fontSize = 15.sp) }
+
+                if (loadingModels) {
+                    CircularProgressIndicator(modifier = Modifier.padding(top = 12.dp))
+                }
+                modelsError?.let {
+                    Text("⚠ $it", color = Red, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                }
+
+                val presetList = if (liveModels.isNotEmpty()) liveModels else AiSettings.OPENROUTER_FREE_PRESETS
                 Text(
-                    "Быстрый выбор бесплатной модели:",
+                    if (liveModels.isNotEmpty()) "Бесплатные модели (${liveModels.size}) — выберите:"
+                    else "Быстрый выбор (список по умолчанию, нажмите кнопку выше для актуального):",
                     color = TextSecondary,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
                 )
-                AiSettings.OPENROUTER_FREE_PRESETS.forEach { preset ->
+                presetList.forEach { preset ->
                     ModelPreset(
                         slug = preset,
                         selected = preset == openRouterModel,
                         onPick = { openRouterModel = preset }
                     )
                 }
-                Text(
-                    "⚠ Для бесплатных моделей включите их использование в настройках " +
-                        "приватности: openrouter.ai/settings/privacy — иначе тоже будет 404.",
-                    color = TextMuted,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 10.dp)
-                )
             } else {
                 Field(
                     label = "API-ключ Anthropic",
