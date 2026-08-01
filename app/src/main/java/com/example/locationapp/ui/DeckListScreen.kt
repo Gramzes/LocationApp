@@ -12,15 +12,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,6 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.locationapp.english.CustomDeckStore
 import com.example.locationapp.english.Deck
 import com.example.locationapp.english.DeckRepository
 import com.example.locationapp.english.Progress
@@ -45,51 +43,79 @@ import com.example.locationapp.english.Streak
 fun DeckListScreen(
     onOpenDeck: (String) -> Unit,
     onOpenAi: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onCreateDeck: () -> Unit,
+    onEditDeck: (String) -> Unit
 ) {
     val context = LocalContext.current
     val progress = remember { Progress(context) }
     val streak = remember { Streak(context) }
-    var resetDeck by remember { mutableStateOf<Deck?>(null) }
+    val store = remember { CustomDeckStore(context) }
+
+    var custom by remember { mutableStateOf(store.all()) }
+    var refresh by remember { mutableStateOf(0) }
+    var selected by remember { mutableStateOf<Deck?>(null) }
+
+    val allDecks = DeckRepository.decks + custom
 
     Column(modifier = Modifier.fillMaxSize().background(Bg)) {
         Header(title = "Английский по карточкам") {
+            HeaderIcon("＋", onCreateDeck)
             HeaderIcon("✨", onOpenAi)
             HeaderIcon("⚙", onOpenSettings)
         }
 
         StreakBanner(streak)
 
-        LazyColumn(
+        androidx.compose.foundation.lazy.LazyColumn(
             modifier = Modifier.fillMaxSize().padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(DeckRepository.decks) { deck ->
+            androidx.compose.foundation.lazy.items(allDecks) { deck ->
                 DeckRow(
                     deck = deck,
                     progress = progress,
+                    refreshKey = refresh,
                     onClick = { onOpenDeck(deck.id) },
-                    onLongClick = { resetDeck = deck }
+                    onLongClick = { selected = deck }
                 )
             }
         }
     }
 
-    resetDeck?.let { deck ->
+    selected?.let { deck ->
+        val isCustom = CustomDeckStore.isCustom(deck.id)
         AlertDialog(
-            onDismissRequest = { resetDeck = null },
-            title = { Text("Сбросить прогресс?") },
-            text = { Text("Статистика набора «${deck.title}» будет очищена.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    progress.resetDeck(deck.id)
-                    resetDeck = null
-                }) { Text("Сбросить") }
+            onDismissRequest = { selected = null },
+            title = { Text("${deck.emoji} ${deck.title}") },
+            text = {
+                Column {
+                    if (isCustom) {
+                        DialogRow("✏️ Редактировать") { onEditDeck(deck.id); selected = null }
+                        DialogRow("🗑 Удалить набор") {
+                            store.delete(deck.id)
+                            progress.resetDeck(deck.id)
+                            custom = store.all()
+                            refresh++
+                            selected = null
+                        }
+                    }
+                    DialogRow("🔄 Сбросить прогресс") {
+                        progress.resetDeck(deck.id)
+                        refresh++
+                        selected = null
+                    }
+                }
             },
-            dismissButton = {
-                TextButton(onClick = { resetDeck = null }) { Text("Отмена") }
-            }
+            confirmButton = { TextButton(onClick = { selected = null }) { Text("Закрыть") } }
         )
+    }
+}
+
+@Composable
+private fun DialogRow(text: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Text(text, modifier = Modifier.fillMaxWidth(), color = TextPrimary)
     }
 }
 
@@ -111,13 +137,14 @@ private fun StreakBanner(streak: Streak) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HeaderIcon(symbol: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(42.dp)
             .background(BrandDark, CircleShape)
-            .combinedClickableSafe(onClick),
+            .combinedClickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(symbol, color = Color.White, fontSize = 18.sp)
@@ -125,17 +152,15 @@ private fun HeaderIcon(symbol: String, onClick: () -> Unit) {
 }
 
 @OptIn(ExperimentalFoundationApi::class)
-private fun Modifier.combinedClickableSafe(onClick: () -> Unit): Modifier =
-    this.combinedClickable(onClick = onClick)
-
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DeckRow(
     deck: Deck,
     progress: Progress,
+    refreshKey: Int,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
+    // refreshKey меняется после сброса/удаления и заставляет строку пересчитать прогресс.
     val total = deck.cards.size
     val learned = progress.learnedCount(deck.id)
     val due = progress.dueCount(deck.id)
@@ -155,12 +180,7 @@ private fun DeckRow(
         ) {
             Text(deck.emoji, fontSize = 32.sp, modifier = Modifier.padding(end = 16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    deck.title,
-                    color = TextPrimary,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Text(deck.title, color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text(
                     "Выучено $learned / $total" + if (due > 0) "   •   🔁 к повторению: $due" else "",
                     color = TextSecondary,

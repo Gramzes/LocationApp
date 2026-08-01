@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 sealed class Screen {
     object DeckList : Screen()
     data class Study(val deckId: String) : Screen()
+    data class DeckEditor(val deckId: String?) : Screen()
     object Ai : Screen()
     object Settings : Screen()
 }
@@ -34,11 +35,17 @@ fun AppRoot() {
         is Screen.DeckList -> DeckListScreen(
             onOpenDeck = { screen = Screen.Study(it) },
             onOpenAi = { screen = Screen.Ai },
-            onOpenSettings = { screen = Screen.Settings }
+            onOpenSettings = { screen = Screen.Settings },
+            onCreateDeck = { screen = Screen.DeckEditor(null) },
+            onEditDeck = { screen = Screen.DeckEditor(it) }
         )
         is Screen.Study -> {
             BackHandler { screen = Screen.DeckList }
             StudyScreen(deckId = s.deckId, onBack = { screen = Screen.DeckList })
+        }
+        is Screen.DeckEditor -> {
+            BackHandler { screen = Screen.DeckList }
+            DeckEditorScreen(deckId = s.deckId, onBack = { screen = Screen.DeckList })
         }
         is Screen.Ai -> {
             BackHandler { screen = Screen.DeckList }

@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.locationapp.english.AiClient
 import com.example.locationapp.english.AiSettings
+import com.example.locationapp.english.CustomDeckStore
 import com.example.locationapp.english.DeckRepository
 import com.example.locationapp.english.Mode
 import com.example.locationapp.english.Progress
@@ -53,7 +54,9 @@ import kotlinx.coroutines.withContext
 @Composable
 fun StudyScreen(deckId: String, onBack: () -> Unit) {
     val context = LocalContext.current
-    val deck = remember(deckId) { DeckRepository.deckById(deckId) }
+    val deck = remember(deckId) {
+        DeckRepository.deckById(deckId) ?: CustomDeckStore(context).deckById(deckId)
+    }
     if (deck == null) {
         LaunchedEffect(Unit) { onBack() }
         return
