@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.example.locationapp.english.Deck
 import com.example.locationapp.english.DeckRepository
 import com.example.locationapp.english.Progress
+import com.example.locationapp.english.Streak
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -47,6 +49,7 @@ fun DeckListScreen(
 ) {
     val context = LocalContext.current
     val progress = remember { Progress(context) }
+    val streak = remember { Streak(context) }
     var resetDeck by remember { mutableStateOf<Deck?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().background(Bg)) {
@@ -54,6 +57,8 @@ fun DeckListScreen(
             HeaderIcon("✨", onOpenAi)
             HeaderIcon("⚙", onOpenSettings)
         }
+
+        StreakBanner(streak)
 
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(12.dp),
@@ -89,6 +94,24 @@ fun DeckListScreen(
 }
 
 @Composable
+private fun StreakBanner(streak: Streak) {
+    val days = streak.currentStreak()
+    val count = streak.todayCount()
+    val goal = streak.dailyGoal
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(BrandLight)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("🔥 $days дн.", color = BrandDark, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Spacer(Modifier.weight(1f))
+        Text("Сегодня $count/$goal", color = TextSecondary, fontSize = 14.sp)
+    }
+}
+
+@Composable
 private fun HeaderIcon(symbol: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
@@ -115,7 +138,7 @@ private fun DeckRow(
 ) {
     val total = deck.cards.size
     val learned = progress.learnedCount(deck.id)
-    val problems = progress.problemCount(deck.id)
+    val due = progress.dueCount(deck.id)
     val fraction = if (total == 0) 0f else learned.toFloat() / total
 
     Card(
@@ -139,7 +162,7 @@ private fun DeckRow(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "Выучено $learned / $total" + if (problems > 0) "   •   🔁 сложных: $problems" else "",
+                    "Выучено $learned / $total" + if (due > 0) "   •   🔁 к повторению: $due" else "",
                     color = TextSecondary,
                     fontSize = 14.sp,
                     modifier = Modifier.padding(top = 4.dp)

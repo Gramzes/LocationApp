@@ -42,6 +42,7 @@ import com.example.locationapp.english.DeckRepository
 import com.example.locationapp.english.Mode
 import com.example.locationapp.english.Progress
 import com.example.locationapp.english.Question
+import com.example.locationapp.english.Streak
 import com.example.locationapp.english.StudySession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -57,6 +58,7 @@ fun StudyScreen(deckId: String, onBack: () -> Unit) {
         return
     }
     val progress = remember { Progress(context) }
+    val streak = remember { Streak(context) }
     val session = remember(deckId) { StudySession(deck, progress) }
     val aiClient = remember { AiClient(AiSettings(context)) }
 
@@ -66,6 +68,7 @@ fun StudyScreen(deckId: String, onBack: () -> Unit) {
 
     fun advance(isCorrect: Boolean) {
         session.record(question.cardIndex, isCorrect)
+        streak.onAnswered()
         answered++
         if (isCorrect) correct++
         question = session.next()
@@ -121,6 +124,10 @@ private fun FlashcardMode(
     var aiText by remember(question) { mutableStateOf("") }
     var aiLoading by remember(question) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val speaker = LocalSpeaker.current
+
+    // Автоозвучка английского слова при показе новой карточки.
+    LaunchedEffect(question) { speaker?.speak(card.term) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Card(
@@ -167,25 +174,33 @@ private fun FlashcardMode(
             }
         }
 
-        Button(
-            onClick = {
-                aiLoading = true
-                scope.launch {
-                    val sys = "Ты помощник по изучению английского для русскоязычного ученика. Пиши кратко."
-                    val prompt = "Придумай 2 простых примера предложений на английском со словом " +
-                        "\"${card.term}\" (${card.translation}). После каждого дай перевод на русский в скобках. " +
-                        "Только предложения, без вступления."
-                    val res = withContext(Dispatchers.IO) { runCatching { aiClient.ask(sys, prompt) } }
-                    aiLoading = false
-                    res.onSuccess { aiText = it; flipped = false }
-                        .onFailure { aiText = "⚠ ${it.message}"; flipped = false }
-                }
-            },
-            enabled = !aiLoading,
-            colors = ButtonDefaults.buttonColors(containerColor = Brand),
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-        ) { Text("✨ Пример от ИИ", fontSize = 16.sp) }
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+            Button(
+                onClick = { speaker?.speak(card.term) },
+                colors = ButtonDefaults.buttonColors(containerColor = BrandDark),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.weight(1f).padding(end = 8.dp)
+            ) { Text("🔊 Озвучить", fontSize = 15.sp) }
+            Button(
+                onClick = {
+                    aiLoading = true
+                    scope.launch {
+                        val sys = "Ты помощник по изучению английского для русскоязычного ученика. Пиши кратко."
+                        val prompt = "Придумай 2 простых примера предложений на английском со словом " +
+                            "\"${card.term}\" (${card.translation}). После каждого дай перевод на русский в скобках. " +
+                            "Только предложения, без вступления."
+                        val res = withContext(Dispatchers.IO) { runCatching { aiClient.ask(sys, prompt) } }
+                        aiLoading = false
+                        res.onSuccess { aiText = it; flipped = false }
+                            .onFailure { aiText = "⚠ ${it.message}"; flipped = false }
+                    }
+                },
+                enabled = !aiLoading,
+                colors = ButtonDefaults.buttonColors(containerColor = Brand),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.weight(1f).padding(start = 8.dp)
+            ) { Text("✨ Пример", fontSize = 15.sp) }
+        }
 
         Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
             Button(

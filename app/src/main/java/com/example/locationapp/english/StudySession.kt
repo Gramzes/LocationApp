@@ -73,11 +73,16 @@ class StudySession(val deck: Deck, private val progress: Progress) {
 
     private fun pickWeightedIndex(): Int {
         val stats = progress.stats(deck.id)
+        val now = System.currentTimeMillis()
         val weights = deck.cards.indices.map { i ->
             val s = stats[i]
-            var w = 1.0 + (s?.wrong ?: 0) * 2.5
-            if (s != null && s.isLearned) w *= 0.25
-            if (i == lastIndex) w *= 0.15 // избегаем повтора подряд
+            var w: Double = when {
+                s == null -> 1.5                     // новое слово — вводим в оборот
+                s.dueAt in 1..now -> 3.0 + s.wrong * 2.0  // пора повторить (проблемные — чаще)
+                s.dueAt == 0L -> 2.0                 // ещё не планировалось
+                else -> 0.3                          // ещё рано повторять
+            }
+            if (i == lastIndex) w *= 0.15            // избегаем повтора подряд
             w.coerceAtLeast(0.05)
         }
         val total = weights.sum()
