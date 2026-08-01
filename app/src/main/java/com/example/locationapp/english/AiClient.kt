@@ -9,6 +9,9 @@ import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 
+/** Сообщение диалога. role: "user" или "assistant". */
+data class ChatMessage(val role: String, val content: String)
+
 /**
  * Клиент для двух ИИ-провайдеров:
  *  - Anthropic Messages API (x-api-key);
@@ -30,6 +33,48 @@ class AiClient(private val settings: AiSettings) {
         }
     }
 
+    /** Многоходовой диалог (для разговорной практики). */
+    @Throws(IOException::class)
+    fun chat(systemPrompt: String?, history: List<ChatMessage>): String {
+        if (!settings.isConfigured) {
+            throw IOException("Не указан API-ключ. Откройте настройки (⚙).")
+        }
+        val messages = JSONArray()
+        // OpenRouter принимает system в messages; Anthropic — отдельным полем.
+        val includeSystemInline = settings.provider == AiProvider.OPENROUTER
+        if (includeSystemInline && !systemPrompt.isNullOrBlank()) {
+            messages.put(JSONObject().put("role", "system").put("content", systemPrompt))
+        }
+        history.forEach { messages.put(JSONObject().put("role", it.role).put("content", it.content)) }
+
+        return when (settings.provider) {
+            AiProvider.ANTHROPIC -> {
+                val body = JSONObject().apply {
+                    put("model", settings.anthropicModel)
+                    put("max_tokens", 1024)
+                    put("output_config", JSONObject().put("effort", "low"))
+                    if (!systemPrompt.isNullOrBlank()) put("system", systemPrompt)
+                    put("messages", messages)
+                }
+                val conn = open("https://api.anthropic.com/v1/messages")
+                conn.setRequestProperty("x-api-key", settings.anthropicKey)
+                conn.setRequestProperty("anthropic-version", "2023-06-01")
+                send(conn, body) { json -> parseAnthropicText(json) }
+            }
+            AiProvider.OPENROUTER -> {
+                val body = JSONObject().apply {
+                    put("model", settings.openRouterModel)
+                    put("messages", messages)
+                }
+                val conn = open("https://openrouter.ai/api/v1/chat/completions")
+                conn.setRequestProperty("Authorization", "Bearer ${settings.openRouterKey}")
+                conn.setRequestProperty("HTTP-Referer", "https://github.com/Gramzes/LocationApp")
+                conn.setRequestProperty("X-Title", "English Flashcards")
+                send(conn, body) { json -> parseOpenRouterText(json) }
+            }
+        }
+    }
+
     // --- Anthropic ---
     private fun askAnthropic(systemPrompt: String?, userPrompt: String): String {
         val body = JSONObject().apply {
@@ -42,17 +87,7 @@ class AiClient(private val settings: AiSettings) {
         val conn = open("https://api.anthropic.com/v1/messages")
         conn.setRequestProperty("x-api-key", settings.anthropicKey)
         conn.setRequestProperty("anthropic-version", "2023-06-01")
-        return send(conn, body) { json ->
-            val obj = JSONObject(json)
-            if (obj.optString("stop_reason") == "refusal") return@send "Модель отклонила запрос."
-            val content = obj.optJSONArray("content") ?: return@send "(пустой ответ)"
-            val sb = StringBuilder()
-            for (i in 0 until content.length()) {
-                val block = content.optJSONObject(i) ?: continue
-                if (block.optString("type") == "text") sb.append(block.optString("text"))
-            }
-            sb.toString().trim().ifEmpty { "(пустой ответ)" }
-        }
+        return send(conn, body) { json -> parseAnthropicText(json) }
     }
 
     // --- OpenRouter ---
@@ -70,12 +105,25 @@ class AiClient(private val settings: AiSettings) {
         conn.setRequestProperty("Authorization", "Bearer ${settings.openRouterKey}")
         conn.setRequestProperty("HTTP-Referer", "https://github.com/Gramzes/LocationApp")
         conn.setRequestProperty("X-Title", "English Flashcards")
-        return send(conn, body) { json ->
-            val obj = JSONObject(json)
-            val choices = obj.optJSONArray("choices")
-            val msg = choices?.optJSONObject(0)?.optJSONObject("message")
-            (msg?.optString("content") ?: "(пустой ответ)").trim().ifEmpty { "(пустой ответ)" }
+        return send(conn, body) { json -> parseOpenRouterText(json) }
+    }
+
+    private fun parseAnthropicText(json: String): String {
+        val obj = JSONObject(json)
+        if (obj.optString("stop_reason") == "refusal") return "Модель отклонила запрос."
+        val content = obj.optJSONArray("content") ?: return "(пустой ответ)"
+        val sb = StringBuilder()
+        for (i in 0 until content.length()) {
+            val block = content.optJSONObject(i) ?: continue
+            if (block.optString("type") == "text") sb.append(block.optString("text"))
         }
+        return sb.toString().trim().ifEmpty { "(пустой ответ)" }
+    }
+
+    private fun parseOpenRouterText(json: String): String {
+        val obj = JSONObject(json)
+        val msg = obj.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")
+        return (msg?.optString("content") ?: "(пустой ответ)").trim().ifEmpty { "(пустой ответ)" }
     }
 
     /**

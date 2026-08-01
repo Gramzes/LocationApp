@@ -1,5 +1,13 @@
 package com.example.locationapp.ui
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.speech.RecognizerIntent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -206,8 +214,46 @@ private fun FlashcardMode(question: Question, aiClient: AiClient, onResult: (Boo
     var aiLoading by remember(question) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val speaker = LocalSpeaker.current
+    val context = LocalContext.current
 
     LaunchedEffect(question) { speaker?.speak(card.term) }
+
+    // Распознавание речи для тренировки произношения.
+    val recognizer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val spoken = result.data
+            ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            ?.firstOrNull()
+            .orEmpty()
+        if (spoken.isBlank()) return@rememberLauncherForActivityResult
+        val target = card.term.trim().lowercase().removePrefix("to ").trim()
+        val ok = spoken.trim().lowercase().contains(target)
+        Toast.makeText(
+            context,
+            if (ok) "✓ Отлично! Услышано: \"$spoken\"" else "Услышано: \"$spoken\" — попробуйте ещё",
+            Toast.LENGTH_LONG
+        ).show()
+    }
+    fun launchRecognizer() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Произнесите: ${card.term}")
+        }
+        try {
+            recognizer.launch(intent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Голосовой ввод недоступен на устройстве", Toast.LENGTH_SHORT).show()
+        }
+    }
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) launchRecognizer()
+        else Toast.makeText(context, "Нужен доступ к микрофону", Toast.LENGTH_SHORT).show()
+    }
+    fun onMic() {
+        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        if (granted) launchRecognizer() else micPermission.launch(Manifest.permission.RECORD_AUDIO)
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         PromptLabel("Карточка — нажмите, чтобы перевернуть")
@@ -249,8 +295,14 @@ private fun FlashcardMode(question: Question, aiClient: AiClient, onResult: (Boo
                 onClick = { speaker?.speak(card.term) },
                 colors = ButtonDefaults.buttonColors(containerColor = BrandDark),
                 shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.weight(1f).padding(end = 8.dp)
-            ) { Text("🔊 Озвучить", fontSize = 15.sp) }
+                modifier = Modifier.weight(1f).padding(end = 6.dp)
+            ) { Text("🔊", fontSize = 15.sp) }
+            Button(
+                onClick = { onMic() },
+                colors = ButtonDefaults.buttonColors(containerColor = BrandDark),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.weight(1f).padding(horizontal = 6.dp)
+            ) { Text("🎤", fontSize = 15.sp) }
             Button(
                 onClick = {
                     aiLoading = true
@@ -268,8 +320,8 @@ private fun FlashcardMode(question: Question, aiClient: AiClient, onResult: (Boo
                 enabled = !aiLoading,
                 colors = ButtonDefaults.buttonColors(containerColor = Brand),
                 shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.weight(1f).padding(start = 8.dp)
-            ) { Text("✨ Пример", fontSize = 15.sp) }
+                modifier = Modifier.weight(1f).padding(start = 6.dp)
+            ) { Text("✨", fontSize = 15.sp) }
         }
 
         Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {

@@ -34,7 +34,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun AiAssistantScreen(onBack: () -> Unit) {
+fun AiAssistantScreen(onBack: () -> Unit, onOpenChat: () -> Unit) {
     val context = LocalContext.current
     val client = remember { AiClient(AiSettings(context)) }
     val scope = rememberCoroutineScope()
@@ -54,6 +54,13 @@ fun AiAssistantScreen(onBack: () -> Unit) {
         }
 
         Column(modifier = Modifier.padding(20.dp)) {
+            Button(
+                onClick = onOpenChat,
+                colors = ButtonDefaults.buttonColors(containerColor = Green),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+            ) { Text("🗣 Разговорная практика (диалоги)", fontSize = 15.sp) }
+
             Text(
                 "Введите английское слово или фразу — ИИ даст перевод, примеры предложений и синонимы.",
                 color = TextSecondary,
