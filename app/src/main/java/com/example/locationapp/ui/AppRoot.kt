@@ -25,6 +25,8 @@ sealed class Screen {
     data class DeckEditor(val deckId: String?) : Screen()
     object Ai : Screen()
     object Chat : Screen()
+    object Reading : Screen()
+    object Stats : Screen()
     object Settings : Screen()
 }
 
@@ -38,7 +40,8 @@ fun AppRoot() {
             onOpenAi = { screen = Screen.Ai },
             onOpenSettings = { screen = Screen.Settings },
             onCreateDeck = { screen = Screen.DeckEditor(null) },
-            onEditDeck = { screen = Screen.DeckEditor(it) }
+            onEditDeck = { screen = Screen.DeckEditor(it) },
+            onOpenStats = { screen = Screen.Stats }
         )
         is Screen.Study -> {
             BackHandler { screen = Screen.DeckList }
@@ -52,12 +55,21 @@ fun AppRoot() {
             BackHandler { screen = Screen.DeckList }
             AiAssistantScreen(
                 onBack = { screen = Screen.DeckList },
-                onOpenChat = { screen = Screen.Chat }
+                onOpenChat = { screen = Screen.Chat },
+                onOpenReading = { screen = Screen.Reading }
             )
         }
         is Screen.Chat -> {
             BackHandler { screen = Screen.Ai }
             ChatScreen(onBack = { screen = Screen.Ai })
+        }
+        is Screen.Reading -> {
+            BackHandler { screen = Screen.Ai }
+            ReadingScreen(onBack = { screen = Screen.Ai })
+        }
+        is Screen.Stats -> {
+            BackHandler { screen = Screen.DeckList }
+            StatisticsScreen(onBack = { screen = Screen.DeckList })
         }
         is Screen.Settings -> {
             BackHandler { screen = Screen.DeckList }

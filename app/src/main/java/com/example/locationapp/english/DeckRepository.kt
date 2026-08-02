@@ -92,6 +92,44 @@ object DeckRepository {
                 Card("schedule", "расписание, график", "Check your schedule."),
                 Card("goal", "цель", "Our goal is to grow fast.")
             )
+        ),
+        Deck(
+            id = "time",
+            title = "Время и даты",
+            emoji = "🗓",
+            cards = listOf(
+                Card("today", "сегодня", "I am busy today."),
+                Card("tomorrow", "завтра", "See you tomorrow."),
+                Card("yesterday", "вчера", "We met yesterday."),
+                Card("week", "неделя", "I work five days a week."),
+                Card("month", "месяц", "This month is very warm."),
+                Card("year", "год", "Happy new year!"),
+                Card("hour", "час", "The trip takes one hour."),
+                Card("minute", "минута", "Wait a minute, please."),
+                Card("Monday", "понедельник", "The meeting is on Monday."),
+                Card("weekend", "выходные", "We relax on the weekend."),
+                Card("morning", "утро", "I run every morning."),
+                Card("evening", "вечер", "We watch films in the evening.")
+            )
+        ),
+        Deck(
+            id = "nature",
+            title = "Погода и природа",
+            emoji = "🌦",
+            cards = listOf(
+                Card("weather", "погода", "The weather is nice today."),
+                Card("rain", "дождь", "Take an umbrella, it will rain."),
+                Card("snow", "снег", "Children love the snow."),
+                Card("sun", "солнце", "The sun is very bright."),
+                Card("wind", "ветер", "The wind is cold today."),
+                Card("cloud", "облако", "There is one cloud in the sky."),
+                Card("river", "река", "We swam in the river."),
+                Card("mountain", "гора", "The mountain is very high."),
+                Card("tree", "дерево", "A bird sits on the tree."),
+                Card("sea", "море", "The sea is warm in summer."),
+                Card("forest", "лес", "We walked in the forest."),
+                Card("warm", "тёплый", "It is warm outside.")
+            )
         )
     )
 

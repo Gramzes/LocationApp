@@ -2,6 +2,7 @@ package com.example.locationapp.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,7 +48,8 @@ fun DeckListScreen(
     onOpenAi: () -> Unit,
     onOpenSettings: () -> Unit,
     onCreateDeck: () -> Unit,
-    onEditDeck: (String) -> Unit
+    onEditDeck: (String) -> Unit,
+    onOpenStats: () -> Unit
 ) {
     val context = LocalContext.current
     val progress = remember { Progress(context) }
@@ -67,7 +69,7 @@ fun DeckListScreen(
             HeaderIcon("⚙", onOpenSettings)
         }
 
-        StreakBanner(streak)
+        StreakBanner(streak, onOpenStats)
 
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(12.dp),
@@ -122,7 +124,7 @@ private fun DialogRow(text: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun StreakBanner(streak: Streak) {
+private fun StreakBanner(streak: Streak, onClick: () -> Unit) {
     val days = streak.currentStreak()
     val count = streak.todayCount()
     val goal = streak.dailyGoal
@@ -130,12 +132,13 @@ private fun StreakBanner(streak: Streak) {
         modifier = Modifier
             .fillMaxWidth()
             .background(BrandLight)
+            .clickable { onClick() }
             .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text("🔥 $days дн.", color = BrandDark, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         Spacer(Modifier.weight(1f))
-        Text("Сегодня $count/$goal", color = TextSecondary, fontSize = 14.sp)
+        Text("Сегодня $count/$goal  📊", color = TextSecondary, fontSize = 14.sp)
     }
 }
 
