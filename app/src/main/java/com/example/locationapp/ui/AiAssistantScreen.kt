@@ -109,7 +109,10 @@ fun AiAssistantScreen(onBack: () -> Unit, onOpenChat: () -> Unit, onOpenReading:
             }
         }
 
-        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
+        Column(
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                .padding(start = 20.dp, end = 20.dp, bottom = 110.dp)
+        ) {
             if (result.isNotEmpty()) {
                 Text(result, color = TextPrimary, fontSize = 16.sp)
             }

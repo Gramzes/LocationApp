@@ -57,7 +57,10 @@ fun StatisticsScreen(onBack: () -> Unit) {
             ) { Text("Назад", color = Color.White, fontSize = 14.sp) }
         }
 
-        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+        Column(
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 110.dp)
+        ) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 StatCard("🔥 Серия", "${streak.currentStreak()} дн.", Modifier.weight(1f).padding(end = 6.dp))
                 StatCard("🏆 Рекорд серии", "${streak.bestStreak()} дн.", Modifier.weight(1f).padding(start = 6.dp))
@@ -66,6 +69,22 @@ fun StatisticsScreen(onBack: () -> Unit) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 StatCard("✅ Выучено", "$totalLearned / $totalWords", Modifier.weight(1f).padding(end = 6.dp))
                 StatCard("🔁 К повторению", "$totalDue", Modifier.weight(1f).padding(start = 6.dp))
+            }
+
+            Spacer(Modifier.height(20.dp))
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Активность за неделю", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Spacer(Modifier.height(14.dp))
+                    val week = (6 downTo 0).map { streak.countForDay(streak.dayIdDaysAgo(it)) }
+                    val labels = (6 downTo 0).map { dayLabel(it) }
+                    WeekBars(week, labels)
+                }
             }
 
             Spacer(Modifier.height(20.dp))
@@ -109,6 +128,44 @@ private fun Heatmap(counts: List<Int>) {
             }
         }
     }
+}
+
+@Composable
+private fun WeekBars(counts: List<Int>, labels: List<String>) {
+    val max = (counts.maxOrNull() ?: 0).coerceAtLeast(1)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        counts.forEachIndexed { i, c ->
+            val isMax = c == max && c > 0
+            val barHeight = (10 + (c.toFloat() / max) * 120).dp
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (c > 0) {
+                    Text("$c", color = TextSecondary, fontSize = 11.sp)
+                    Spacer(Modifier.height(4.dp))
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(barHeight)
+                        .background(if (isMax) Brand else BrandLight, RoundedCornerShape(8.dp))
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(labels[i], color = TextMuted, fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+private fun dayLabel(daysAgo: Int): String {
+    val cal = java.util.Calendar.getInstance().apply { add(java.util.Calendar.DAY_OF_MONTH, -daysAgo) }
+    val names = arrayOf("Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб")
+    return names[(cal.get(java.util.Calendar.DAY_OF_WEEK) - 1).coerceIn(0, 6)]
 }
 
 private fun cellColor(count: Int): Color = when {

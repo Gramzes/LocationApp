@@ -67,7 +67,8 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
 
         Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 110.dp)
         ) {
             Text("Провайдер", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
 
