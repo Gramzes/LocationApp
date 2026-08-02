@@ -196,7 +196,7 @@ private fun ModelPreset(slug: String, selected: Boolean, onPick: () -> Unit) {
     ) {
         Text(
             slug,
-            color = if (selected) Color.White else TextPrimary,
+            color = if (selected) OnAccent else TextPrimary,
             fontSize = 13.sp
         )
     }

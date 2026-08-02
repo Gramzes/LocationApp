@@ -112,8 +112,8 @@ private fun Heatmap(counts: List<Int>) {
 }
 
 private fun cellColor(count: Int): Color = when {
-    count <= 0 -> Color(0xFFE3E8F2)
-    count < 5 -> Color(0xFFAEC4FF)
-    count < 15 -> Color(0xFF6E8CF5)
+    count <= 0 -> Color(0xFF26262B)
+    count < 5 -> Color(0xFF4C5A2A)
+    count < 15 -> Color(0xFF8FB63A)
     else -> Brand
 }

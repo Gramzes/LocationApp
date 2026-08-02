@@ -127,7 +127,7 @@ fun ChatScreen(onBack: () -> Unit) {
                         .clickable { scenario = sc }
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
-                    Text(sc.label, color = if (selected) Color.White else TextPrimary, fontSize = 14.sp)
+                    Text(sc.label, color = if (selected) OnAccent else TextPrimary, fontSize = 14.sp)
                 }
             }
         }
@@ -183,7 +183,7 @@ private fun ChatBubble(msg: ChatMessage, onSpeak: () -> Unit) {
         ) {
             Text(
                 msg.content,
-                color = if (isUser) Color.White else TextPrimary,
+                color = if (isUser) OnAccent else TextPrimary,
                 fontSize = 15.sp
             )
             if (!isUser) {

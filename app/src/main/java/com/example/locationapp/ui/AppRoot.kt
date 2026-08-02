@@ -88,14 +88,14 @@ fun Header(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(Brand)
+            .background(Bg)
             .padding(horizontal = 20.dp, vertical = 20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = title,
-            color = androidx.compose.ui.graphics.Color.White,
-            fontSize = 22.sp,
+            color = TextPrimary,
+            fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f)
         )

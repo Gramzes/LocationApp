@@ -131,12 +131,13 @@ private fun StreakBanner(streak: Streak, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(BrandLight)
+            .padding(horizontal = 12.dp)
+            .background(Surface, RoundedCornerShape(16.dp))
             .clickable { onClick() }
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(horizontal = 18.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("🔥 $days дн.", color = BrandDark, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text("🔥 $days дн.", color = Brand, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         Spacer(Modifier.weight(1f))
         Text("Сегодня $count/$goal  📊", color = TextSecondary, fontSize = 14.sp)
     }

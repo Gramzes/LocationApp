@@ -167,7 +167,7 @@ fun DeckEditorScreen(deckId: String?, onBack: () -> Unit) {
             item {
                 Button(
                     onClick = { drafts.add(CardDraft()) },
-                    colors = ButtonDefaults.buttonColors(containerColor = BrandLight, contentColor = BrandDark),
+                    colors = ButtonDefaults.buttonColors(containerColor = BrandLight, contentColor = Brand),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("＋ Добавить слово", fontSize = 15.sp) }
@@ -272,7 +272,7 @@ private fun CardDraftEditor(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (draft.loading) {
-                    CircularProgressIndicator(color = Color.White, modifier = Modifier.height(18.dp).width(18.dp))
+                    CircularProgressIndicator(color = OnAccent, modifier = Modifier.height(18.dp).width(18.dp))
                 } else {
                     Text("✨ Заполнить перевод и пример", fontSize = 14.sp)
                 }

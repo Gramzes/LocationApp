@@ -293,13 +293,13 @@ private fun FlashcardMode(question: Question, aiClient: AiClient, onResult: (Boo
         Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
             Button(
                 onClick = { speaker?.speak(card.term) },
-                colors = ButtonDefaults.buttonColors(containerColor = BrandDark),
+                colors = ButtonDefaults.buttonColors(containerColor = BrandDark, contentColor = Color.White),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.weight(1f).padding(end = 6.dp)
             ) { Text("🔊", fontSize = 15.sp) }
             Button(
                 onClick = { onMic() },
-                colors = ButtonDefaults.buttonColors(containerColor = BrandDark),
+                colors = ButtonDefaults.buttonColors(containerColor = BrandDark, contentColor = Color.White),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.weight(1f).padding(horizontal = 6.dp)
             ) { Text("🎤", fontSize = 15.sp) }
@@ -497,7 +497,7 @@ private fun ChipRows(items: List<Int>, label: (Int) -> String, onClick: (Int) ->
                             .clickable { onClick(item) }
                             .padding(vertical = 12.dp),
                         contentAlignment = Alignment.Center
-                    ) { Text(label(item), color = BrandDark, fontSize = 15.sp) }
+                    ) { Text(label(item), color = TextPrimary, fontSize = 15.sp) }
                 }
                 repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             }
@@ -570,7 +570,11 @@ private fun MatchTile(text: String, done: Boolean, selected: Boolean, wrong: Boo
         selected -> Brand
         else -> Surface
     }
-    val fg = if (done || wrong || selected) Color.White else TextPrimary
+    val fg = when {
+        wrong -> Color.White
+        done || selected -> OnAccent
+        else -> TextPrimary
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()

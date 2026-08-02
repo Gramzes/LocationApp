@@ -144,7 +144,7 @@ fun ReadingScreen(onBack: () -> Unit) {
                 Spacer(Modifier.height(12.dp))
                 Button(
                     onClick = { speaker?.speak(text) },
-                    colors = ButtonDefaults.buttonColors(containerColor = BrandDark),
+                    colors = ButtonDefaults.buttonColors(containerColor = BrandDark, contentColor = Color.White),
                     shape = RoundedCornerShape(14.dp)
                 ) { Text("🔊 Озвучить текст", fontSize = 14.sp) }
                 Spacer(Modifier.height(16.dp))
@@ -159,7 +159,7 @@ fun ReadingScreen(onBack: () -> Unit) {
                     .padding(16.dp)
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(tappedWord, color = BrandDark, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(tappedWord, color = Brand, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     if (translating) {
                         Text("…", color = TextSecondary, fontSize = 15.sp)
                     } else {
@@ -171,7 +171,7 @@ fun ReadingScreen(onBack: () -> Unit) {
                         .background(Brand, RoundedCornerShape(10.dp))
                         .clickable { speaker?.speak(tappedWord) }
                         .padding(horizontal = 14.dp, vertical = 10.dp)
-                ) { Text("🔊", color = Color.White, fontSize = 16.sp) }
+                ) { Text("🔊", color = OnAccent, fontSize = 16.sp) }
             }
         }
     }
