@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package proxytester.v1;
+
+option go_package = "github.com/Gramzes/LocationApp/grpc-proxy-tester/testerpb";
+
+// Tester — сервис для проверки gRPC-прокси. Покрывает все четыре типа вызовов
+// и позволяет попросить сервер задержать ответ, вернуть ошибку или ответ
+// заданного размера.
+service Tester {
+  // Обычный вызов: запрос -> ответ.
+  rpc Unary(Request) returns (Response);
+  // Сервер отправляет count ответов с интервалом interval_ms.
+  rpc ServerStream(StreamRequest) returns (stream Response);
+  // Клиент отправляет поток запросов, сервер отвечает одной сводкой.
+  rpc ClientStream(stream Request) returns (Summary);
+  // Сервер отвечает на каждый запрос сразу же, как только его получил.
+  rpc BidiStream(stream Request) returns (stream Response);
+}
+
+message Request {
+  // Строка, которую сервер вернёт в Response.message.
+  string message = 1;
+  // Произвольные данные (для проверки больших сообщений).
+  bytes payload = 2;
+  // Размер payload, который сервер положит в ответ.
+  int32 response_size = 3;
+  // Задержка перед ответом, мс.
+  int32 delay_ms = 4;
+  // Если не 0 — сервер вернёт ошибку с этим gRPC-кодом и текстом fail_message.
+  int32 fail_code = 5;
+  string fail_message = 6;
+}
+
+message Response {
+  string message = 1;
+  bytes payload = 2;
+  // Порядковый номер ответа в потоке (с 1).
+  int64 seq = 3;
+  // Идентификатор экземпляра сервера — удобно для проверки балансировки.
+  string server_id = 4;
+  // Заголовки, которые дошли до сервера (значения -bin заголовков — в base64).
+  map<string, string> received_metadata = 5;
+  // Адрес клиента с точки зрения сервера (обычно адрес прокси).
+  string peer = 6;
+  // Размер payload, который получил сервер.
+  int32 received_payload_size = 7;
+  // SHA-256 (hex) полученного payload — для проверки целостности данных.
+  string received_payload_sha256 = 8;
+  // Сколько миллисекунд оставалось до дедлайна вызова с точки зрения сервера
+  // (0 — сервер дедлайна не видит, т.е. grpc-timeout не дошёл).
+  int64 deadline_ms = 9;
+}
+
+message StreamRequest {
+  // Шаблон для каждого ответа (message, response_size, fail_code и т.д.).
+  Request request = 1;
+  int32 count = 2;
+  int32 interval_ms = 3;
+}
+
+message Summary {
+  int64 count = 1;
+  int64 total_bytes = 2;
+  string server_id = 3;
+  map<string, string> received_metadata = 4;
+  // Последнее полученное сообщение.
+  string last_message = 5;
+}
