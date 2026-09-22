@@ -22,6 +22,9 @@ cd grpc-proxy-tester/android
 ./gradlew :app:installDebug         # установить на подключённое устройство
 ```
 
+Готовый debug-APK собирается в GitHub Actions (workflow `grpc-proxy-tester`) —
+его можно скачать со страницы запуска, раздел Artifacts → `grpc-proxy-tester-debug-apk`.
+
 ## Как пользоваться
 
 1. Запустите тестовый сервер и прокси перед ним.

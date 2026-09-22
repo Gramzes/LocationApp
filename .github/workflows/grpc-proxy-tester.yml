@@ -1,0 +1,83 @@
+name: grpc-proxy-tester
+
+on:
+  push:
+    paths:
+      - "grpc-proxy-tester/**"
+      - ".github/workflows/grpc-proxy-tester.yml"
+  pull_request:
+    paths:
+      - "grpc-proxy-tester/**"
+      - ".github/workflows/grpc-proxy-tester.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: Go (сервер и CLI)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: grpc-proxy-tester
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: grpc-proxy-tester/go.mod
+          cache-dependency-path: grpc-proxy-tester/go.sum
+      - run: go vet ./...
+      - run: go test -race ./...
+
+  android:
+    name: Android (тесты core и APK)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: grpc-proxy-tester/android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: grpc-proxy-tester/go.mod
+          cache-dependency-path: grpc-proxy-tester/go.sum
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Запустить тестовый gRPC-сервер
+        working-directory: grpc-proxy-tester
+        run: |
+          go build -o "$RUNNER_TEMP/grpc-proxy-tester" .
+          nohup "$RUNNER_TEMP/grpc-proxy-tester" server --listen 127.0.0.1:50051 --id ci > "$RUNNER_TEMP/server.log" 2>&1 &
+
+      - name: Тесты core против сервера
+        run: ./gradlew :core:test
+        env:
+          TESTER_ADDR: 127.0.0.1:50051
+
+      - name: Сборка APK
+        run: ./gradlew :app:assembleDebug
+
+      - name: Android lint
+        run: ./gradlew :app:lintDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: grpc-proxy-tester-debug-apk
+          path: grpc-proxy-tester/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Отчёты при ошибке
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            grpc-proxy-tester/android/*/build/reports/
+            ${{ runner.temp }}/server.log
+          if-no-files-found: ignore
