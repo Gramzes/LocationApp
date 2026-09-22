@@ -410,7 +410,8 @@ const file_tester_proto_rawDesc = "" +
 	"\fServerStream\x12\x1d.proxytester.v1.StreamRequest\x1a\x18.proxytester.v1.Response0\x01\x12B\n" +
 	"\fClientStream\x12\x17.proxytester.v1.Request\x1a\x17.proxytester.v1.Summary(\x01\x12C\n" +
 	"\n" +
-	"BidiStream\x12\x17.proxytester.v1.Request\x1a\x18.proxytester.v1.Response(\x010\x01B;Z9github.com/Gramzes/LocationApp/grpc-proxy-tester/testerpbb\x06proto3"
+	"BidiStream\x12\x17.proxytester.v1.Request\x1a\x18.proxytester.v1.Response(\x010\x01B`\n" +
+	"!com.example.grpcproxytester.protoP\x01Z9github.com/Gramzes/LocationApp/grpc-proxy-tester/testerpbb\x06proto3"
 
 var (
 	file_tester_proto_rawDescOnce sync.Once

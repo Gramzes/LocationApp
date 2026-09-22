@@ -1,0 +1,4 @@
+<resources>
+    <!-- Окно до отрисовки Compose; цвета интерфейса задаются в Theme.kt. -->
+    <style name="Theme.GrpcProxyTester" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

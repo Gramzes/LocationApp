@@ -3,6 +3,8 @@ syntax = "proto3";
 package proxytester.v1;
 
 option go_package = "github.com/Gramzes/LocationApp/grpc-proxy-tester/testerpb";
+option java_package = "com.example.grpcproxytester.proto";
+option java_multiple_files = true;
 
 // Tester — сервис для проверки gRPC-прокси. Покрывает все четыре типа вызовов
 // и позволяет попросить сервер задержать ответ, вернуть ошибку или ответ
