@@ -108,6 +108,7 @@ GOOS=linux   GOARCH=amd64 go build -o grpc-proxy-tester .
 | `--authority`     | переопределить `:authority`                                     |
 | `-H "k: v"`       | дополнительный заголовок (можно несколько раз), например авторизация |
 | `--max-msg-size`  | лимит размера сообщения на клиенте (по умолчанию 64 MiB)        |
+| `--connect-proxy` | идти к адресу через HTTP CONNECT-прокси `host:port`; в отличие от `HTTPS_PROXY`, работает и для `127.0.0.1` |
 
 Только `check`:
 
@@ -119,6 +120,7 @@ GOOS=linux   GOARCH=amd64 go build -o grpc-proxy-tester .
 | `--large-size`    | размер большого сообщения в байтах (по умолчанию 1 MiB)         |
 | `--stream-count`  | сколько сообщений в потоковых проверках (по умолчанию 10)       |
 | `--concurrency`   | сколько параллельных вызовов в `concurrency` (по умолчанию 50)  |
+| `--json`          | вместо текста вывести один JSON-объект с результатами (для скриптов и CI) |
 
 Только `bench`: `--duration 10s`, `--concurrency 10`, `--size 0` (payload в байтах),
 `--delay 0` (задержка ответа на сервере), `--timeout 5s`.

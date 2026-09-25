@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -670,6 +671,7 @@ func runCheck(args []string) error {
 	fs.DurationVar(&cfg.long, "long", 0, "включить slow-unary и idle-stream с такой длительностью (например 30s)")
 	onlyFlag := fs.String("only", "", "запустить только перечисленные проверки через запятую")
 	list := fs.Bool("list", false, "показать список проверок и выйти")
+	asJSON := fs.Bool("json", false, "вывести результат одним JSON-объектом (для автоматизации)")
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(), "Использование: %s check [адрес] [флаги]\n\nПрогоняет набор проверок через прокси до тестового сервера.\n\n", progName())
 		fs.PrintDefaults()
@@ -711,10 +713,18 @@ func runCheck(args []string) error {
 	defer cc.Close()
 	s := &suite{conn: cc, client: pb.NewTesterClient(cc), cfg: cfg, headers: conn.headers}
 
+	// В режиме --json человекочитаемый вывод не печатается: stdout — это ровно
+	// один JSON-объект, который можно разобрать без регулярных выражений.
+	var w io.Writer = os.Stdout
 	out := newPrinter(os.Stdout)
-	fmt.Printf("Проверяю %s\n", conn.describe())
-	if note := envProxyNote(conn.addr); note != "" {
-		fmt.Println(out.dim("  " + note))
+	report := jsonReport{Target: conn.describe(), Results: []jsonResult{}}
+	if *asJSON {
+		w = io.Discard
+		out = printer{w: w}
+	}
+	fmt.Fprintf(w, "Проверяю %s\n", conn.describe())
+	if note := envProxyNote(conn.addr); note != "" && conn.connectProxy == "" {
+		fmt.Fprintln(w, out.dim("  "+note))
 	}
 
 	ctx, cancel := context.WithTimeout(conn.headers.outgoing(context.Background()), cfg.timeout)
@@ -722,14 +732,20 @@ func runCheck(args []string) error {
 	err = waitReady(ctx, cc)
 	cancel()
 	if err != nil {
-		fmt.Println(out.red("  ✗ не удалось подключиться: " + describeError(err)))
+		fmt.Fprintln(w, out.red("  ✗ не удалось подключиться: "+describeError(err)))
 		if h := codeHint(status.Code(err)); h != "" {
-			fmt.Println(out.dim("    ↳ " + h))
+			fmt.Fprintln(w, out.dim("    ↳ "+h))
+		}
+		if *asJSON {
+			report.ConnectError = describeError(err)
+			report.ConnectHint = codeHint(status.Code(err))
+			writeJSON(report)
 		}
 		return errChecksFailed
 	}
-	fmt.Println(out.dim(fmt.Sprintf("  соединение установлено за %s", fmtDur(time.Since(start)))))
-	fmt.Println()
+	report.Connected = true
+	fmt.Fprintln(w, out.dim(fmt.Sprintf("  соединение установлено за %s", fmtDur(time.Since(start)))))
+	fmt.Fprintln(w)
 
 	results := runSuite(context.Background(), s, only, out.result)
 
@@ -744,6 +760,20 @@ func runCheck(args []string) error {
 			sk++
 		}
 	}
+	if *asJSON {
+		report.Passed, report.Failed, report.Skipped = p, f, sk
+		for _, r := range results {
+			report.Results = append(report.Results, jsonResult{
+				Name: r.name, Status: r.kind.String(), Detail: r.detail, Hint: r.hint,
+				DurationMs: float64(r.dur.Microseconds()) / 1000,
+			})
+		}
+		writeJSON(report)
+		if f > 0 {
+			return errChecksFailed
+		}
+		return nil
+	}
 	fmt.Println()
 	summary := fmt.Sprintf("Итого: пройдено %d, провалено %d, пропущено %d", p, f, sk)
 	if f > 0 {
@@ -754,9 +784,50 @@ func runCheck(args []string) error {
 	return nil
 }
 
+// jsonReport — вывод check --json. Имена полей — контракт с теми, кто разбирает
+// вывод (например, tools/e2e.py в GrpcInterceptor), менять осторожно.
+type jsonReport struct {
+	Target       string       `json:"target"`
+	Connected    bool         `json:"connected"`
+	ConnectError string       `json:"connect_error,omitempty"`
+	ConnectHint  string       `json:"connect_hint,omitempty"`
+	Results      []jsonResult `json:"results"`
+	Passed       int          `json:"passed"`
+	Failed       int          `json:"failed"`
+	Skipped      int          `json:"skipped"`
+}
+
+type jsonResult struct {
+	Name       string  `json:"name"`
+	Status     string  `json:"status"` // passed | failed | skipped
+	Detail     string  `json:"detail"`
+	Hint       string  `json:"hint,omitempty"`
+	DurationMs float64 `json:"duration_ms"`
+}
+
+func (k resultKind) String() string {
+	switch k {
+	case passed:
+		return "passed"
+	case failed:
+		return "failed"
+	default:
+		return "skipped"
+	}
+}
+
+func writeJSON(r jsonReport) {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(r)
+}
+
 var errChecksFailed = errors.New("есть проваленные проверки")
 
-type printer struct{ color bool }
+type printer struct {
+	color bool
+	w     io.Writer // куда печатать результаты; nil — stdout
+}
 
 func newPrinter(f *os.File) printer {
 	st, err := f.Stat()
@@ -800,8 +871,12 @@ func (p printer) result(r checkResult) {
 	case skipped:
 		detail = p.dim(detail)
 	}
-	fmt.Printf("  %s %-14s %8s  %s\n", mark, r.name, dur, detail)
+	w := p.w
+	if w == nil {
+		w = os.Stdout
+	}
+	fmt.Fprintf(w, "  %s %-14s %8s  %s\n", mark, r.name, dur, detail)
 	if r.hint != "" {
-		fmt.Printf("  %s %s\n", strings.Repeat(" ", 26), p.dim("↳ "+r.hint))
+		fmt.Fprintf(w, "  %s %s\n", strings.Repeat(" ", 26), p.dim("↳ "+r.hint))
 	}
 }

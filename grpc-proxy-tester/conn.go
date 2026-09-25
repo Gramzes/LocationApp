@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -32,6 +34,10 @@ type connConfig struct {
 	authority  string
 	headers    headerList
 	maxMsgSize int
+	// connectProxy — host:port HTTP CONNECT-прокси. В отличие от HTTPS_PROXY,
+	// работает и для адресов вроде 127.0.0.1, которые grpc-go мимо прокси
+	// из окружения всегда отправляет напрямую.
+	connectProxy string
 }
 
 func (c *connConfig) register(fs *flag.FlagSet) {
@@ -43,6 +49,7 @@ func (c *connConfig) register(fs *flag.FlagSet) {
 	fs.StringVar(&c.authority, "authority", "", "переопределить заголовок :authority")
 	fs.Var(&c.headers, "H", "дополнительный заголовок `\"ключ: значение\"` для каждого вызова (можно несколько раз)")
 	fs.IntVar(&c.maxMsgSize, "max-msg-size", 64<<20, "максимальный размер сообщения на клиенте, байт")
+	fs.StringVar(&c.connectProxy, "connect-proxy", "", "идти к адресу через HTTP CONNECT-прокси `host:port` (вместо HTTPS_PROXY)")
 }
 
 // parseArgs разбирает флаги и позволяет указать адрес позиционным аргументом
@@ -85,8 +92,56 @@ func (c *connConfig) dial() (*grpc.ClientConn, error) {
 	if c.authority != "" {
 		opts = append(opts, grpc.WithAuthority(c.authority))
 	}
+	if c.connectProxy != "" {
+		proxy := c.connectProxy
+		opts = append(opts, grpc.WithNoProxy(), grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+			return dialConnect(ctx, proxy, addr)
+		}))
+	}
 	return grpc.NewClient(c.addr, opts...)
 }
+
+// dialConnect открывает туннель к addr через HTTP CONNECT-прокси.
+func dialConnect(ctx context.Context, proxy, addr string) (net.Conn, error) {
+	var d net.Dialer
+	conn, err := d.DialContext(ctx, "tcp", proxy)
+	if err != nil {
+		return nil, fmt.Errorf("CONNECT-прокси %s: %w", proxy, err)
+	}
+	if dl, ok := ctx.Deadline(); ok {
+		_ = conn.SetDeadline(dl)
+	}
+	req := &http.Request{Method: http.MethodConnect, URL: &url.URL{Opaque: addr}, Host: addr, Header: http.Header{}}
+	req.Header.Set("User-Agent", "grpc-proxy-tester")
+	if err := req.Write(conn); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("CONNECT-прокси %s: %w", proxy, err)
+	}
+	br := bufio.NewReader(conn)
+	resp, err := http.ReadResponse(br, req)
+	if err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("CONNECT-прокси %s: %w", proxy, err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		conn.Close()
+		return nil, fmt.Errorf("CONNECT-прокси %s ответил %s", proxy, resp.Status)
+	}
+	_ = conn.SetDeadline(time.Time{})
+	if br.Buffered() > 0 {
+		// Сервер (например, h2) мог начать говорить сразу после ответа прокси.
+		return &bufferedConn{Conn: conn, r: br}, nil
+	}
+	return conn, nil
+}
+
+type bufferedConn struct {
+	net.Conn
+	r *bufio.Reader
+}
+
+func (b *bufferedConn) Read(p []byte) (int, error) { return b.r.Read(p) }
 
 func (c *connConfig) describe() string {
 	var parts []string
@@ -107,6 +162,9 @@ func (c *connConfig) describe() string {
 	}
 	if len(c.headers) > 0 {
 		parts = append(parts, fmt.Sprintf("доп. заголовков: %d", len(c.headers)))
+	}
+	if c.connectProxy != "" {
+		parts = append(parts, "через CONNECT "+c.connectProxy)
 	}
 	return fmt.Sprintf("%s (%s)", c.addr, strings.Join(parts, ", "))
 }
