@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"testing"
 	"time"
 
@@ -63,9 +65,52 @@ func startTCPProxy(t *testing.T, backend string) string {
 	return lis.Addr().String()
 }
 
+// startConnectProxy — простейший HTTP CONNECT-прокси; запоминает, куда просили туннели.
+func startConnectProxy(t *testing.T) (string, <-chan string) {
+	t.Helper()
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { lis.Close() })
+	targets := make(chan string, 100)
+	go func() {
+		for {
+			in, err := lis.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer in.Close()
+				br := bufio.NewReader(in)
+				req, err := http.ReadRequest(br)
+				if err != nil || req.Method != http.MethodConnect {
+					return
+				}
+				targets <- req.Host
+				out, err := net.Dial("tcp", req.Host)
+				if err != nil {
+					io.WriteString(in, "HTTP/1.1 502 Bad Gateway\r\n\r\n")
+					return
+				}
+				defer out.Close()
+				io.WriteString(in, "HTTP/1.1 200 Connection established\r\n\r\n")
+				go io.Copy(out, br)
+				io.Copy(in, out)
+			}()
+		}
+	}()
+	return lis.Addr().String(), targets
+}
+
 func runAll(t *testing.T, addr string, headers headerList) []checkResult {
 	t.Helper()
-	conn := connConfig{addr: addr, maxMsgSize: 64 << 20, headers: headers}
+	return runAllVia(t, connConfig{addr: addr, maxMsgSize: 64 << 20, headers: headers})
+}
+
+func runAllVia(t *testing.T, conn connConfig) []checkResult {
+	t.Helper()
+	headers := conn.headers
 	cc, err := conn.dial()
 	if err != nil {
 		t.Fatal(err)
@@ -94,6 +139,21 @@ func TestChecksDirect(t *testing.T) {
 func TestChecksThroughTCPProxy(t *testing.T) {
 	proxy := startTCPProxy(t, startServer(t))
 	assertAllPassed(t, runAll(t, proxy, headerList{{"authorization", "Bearer test"}}))
+}
+
+func TestChecksThroughConnectProxy(t *testing.T) {
+	// 127.0.0.1 grpc-go через HTTPS_PROXY не пускает никогда; --connect-proxy — пускает.
+	backend := startServer(t)
+	proxy, targets := startConnectProxy(t)
+	assertAllPassed(t, runAllVia(t, connConfig{addr: backend, maxMsgSize: 64 << 20, connectProxy: proxy}))
+	select {
+	case got := <-targets:
+		if got != backend {
+			t.Fatalf("туннель к %s, ожидался %s", got, backend)
+		}
+	default:
+		t.Fatal("соединение шло мимо CONNECT-прокси")
+	}
 }
 
 func TestWaitReadyUnreachable(t *testing.T) {

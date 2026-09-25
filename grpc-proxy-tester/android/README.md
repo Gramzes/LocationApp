@@ -51,6 +51,24 @@ cd grpc-proxy-tester/android
 Настройки сохраняются между запусками. Кнопка «Поделиться» в заголовке отправляет
 текстовый отчёт (в мессенджер, почту и т.д.).
 
+## Запуск из скрипта
+
+Проверки можно запустить без касаний экрана — так их гоняет сквозной тест
+интерсептора (`tools/e2e.py` в GrpcInterceptor):
+
+```bash
+adb shell am start -S -n com.example.grpcproxytester/.MainActivity \
+  --ez autorun true --es run_id 42 --es address 10.0.2.2:50051 \
+  [--ez tls true] [--ez insecure true] [--ei long 2] [--es only unary,health] \
+  [--es connect_proxy 10.0.2.2:8080]
+adb logcat -d -v raw -s GrpcProxyTesterE2E:I
+```
+
+Каждое событие — одна JSON-строка в logcat с тегом `GrpcProxyTesterE2E` и
+этим `run_id`: `connected`, `result` (по одной на проверку), в конце `done` или
+`connect_failed`. Параметры из интента действуют только на этот прогон,
+сохранённые настройки не меняются.
+
 ## Устройство проекта
 
 - `core/` — вся логика: gRPC-клиент (grpc-java + OkHttp, grpc-kotlin), проверки,

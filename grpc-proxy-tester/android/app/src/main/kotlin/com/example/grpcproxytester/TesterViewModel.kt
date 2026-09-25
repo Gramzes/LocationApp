@@ -1,17 +1,22 @@
 package com.example.grpcproxytester
 
 import android.app.Application
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.grpcproxytester.core.AUTOMATION_TAG
+import com.example.grpcproxytester.core.AutomationRequest
 import com.example.grpcproxytester.core.CheckConfig
 import com.example.grpcproxytester.core.CheckResult
 import com.example.grpcproxytester.core.ConnectionConfig
 import com.example.grpcproxytester.core.ProxyTester
 import com.example.grpcproxytester.core.Settings
 import com.example.grpcproxytester.core.TesterEvent
+import com.example.grpcproxytester.core.automationError
+import com.example.grpcproxytester.core.automationLine
 import com.example.grpcproxytester.core.formatReport
 import com.example.grpcproxytester.ui.StatusKind
 import com.example.grpcproxytester.ui.StatusLine
@@ -40,9 +45,32 @@ class TesterViewModel(app: Application) : AndroidViewModel(app) {
     private var target = ""
     private var job: Job? = null
 
+    /** run_id прогона, запущенного через интент (см. Automation.kt); null — прогон запустил человек. */
+    private var automationRunId: String? = null
+
     fun updateSettings(s: Settings) {
         settings = s
         store.save(s)
+    }
+
+    /**
+     * Прогон по интенту: параметры из интента поверх сохранённых настроек,
+     * каждое событие — JSON-строкой в logcat. Сохранённые настройки не меняются.
+     */
+    fun startAutomation(req: AutomationRequest) {
+        if (running) {
+            Log.i(AUTOMATION_TAG, automationError(req.runId, "Уже идёт другой прогон"))
+            return
+        }
+        settings = try {
+            req.applyTo(store.load())
+        } catch (e: IllegalArgumentException) {
+            Log.i(AUTOMATION_TAG, automationError(req.runId, e.message ?: e.toString()))
+            return
+        }
+        automationRunId = req.runId
+        start()
+        if (!running) automationRunId = null
     }
 
     fun start() {
@@ -57,11 +85,13 @@ class TesterViewModel(app: Application) : AndroidViewModel(app) {
             cfg = settings.toCheckConfig()
         } catch (e: IllegalArgumentException) {
             status = StatusLine(e.message ?: "Ошибка в настройках", StatusKind.ERROR)
+            automationRunId?.let { Log.i(AUTOMATION_TAG, automationError(it, status!!.text)) }
             return
         }
         val selected = ProxyTester.checks.map { it.name }.filterNot { it in settings.disabledChecks }.toSet()
         if (selected.isEmpty()) {
             status = StatusLine("Не выбрано ни одной проверки", StatusKind.ERROR)
+            automationRunId?.let { Log.i(AUTOMATION_TAG, automationError(it, status!!.text)) }
             return
         }
 
@@ -77,6 +107,7 @@ class TesterViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 running = false
                 current = null
+                automationRunId = null
             }
         }
     }
@@ -86,6 +117,7 @@ class TesterViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun handle(event: TesterEvent) {
+        automationRunId?.let { id -> automationLine(id, event)?.let { Log.i(AUTOMATION_TAG, it) } }
         when (event) {
             is TesterEvent.Connecting -> {
                 target = event.target

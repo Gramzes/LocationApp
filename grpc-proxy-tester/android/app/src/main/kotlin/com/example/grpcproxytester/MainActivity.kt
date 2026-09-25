@@ -15,7 +15,9 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import com.example.grpcproxytester.core.AutomationRequest
 import com.example.grpcproxytester.ui.TesterScreen
+import java.util.UUID
 
 class MainActivity : ComponentActivity() {
     private val vm: TesterViewModel by viewModels()
@@ -39,6 +41,36 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+        // Только при первом создании: после поворота экрана интент тот же, и
+        // запускать прогон второй раз не нужно.
+        if (savedInstanceState == null) handleAutomation(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleAutomation(intent)
+    }
+
+    /**
+     * `adb shell am start -n com.example.grpcproxytester/.MainActivity --ez autorun true
+     *   --es run_id ID --es address host:port [--ez tls B] [--ez insecure B] [--ei long S] [--es only a,b]
+     *   [--es connect_proxy host:port]`
+     */
+    private fun handleAutomation(intent: Intent?) {
+        if (intent?.getBooleanExtra("autorun", false) != true) return
+        fun bool(key: String) = if (intent.hasExtra(key)) intent.getBooleanExtra(key, false) else null
+        vm.startAutomation(
+            AutomationRequest(
+                runId = intent.getStringExtra("run_id") ?: UUID.randomUUID().toString(),
+                address = intent.getStringExtra("address"),
+                useTls = bool("tls"),
+                skipTlsVerify = bool("insecure"),
+                longSeconds = if (intent.hasExtra("long")) intent.getIntExtra("long", 0) else null,
+                only = intent.getStringExtra("only")
+                    ?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet(),
+                connectProxy = intent.getStringExtra("connect_proxy"),
+            ),
+        )
     }
 
     private fun shareReport() {
