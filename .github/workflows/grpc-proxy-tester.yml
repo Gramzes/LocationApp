@@ -34,6 +34,8 @@ jobs:
   android:
     name: Android (тесты core и APK)
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # публикация APK в релиз proxy-tester-apk
     defaults:
       run:
         working-directory: grpc-proxy-tester/android
@@ -71,6 +73,23 @@ jobs:
           name: grpc-proxy-tester-debug-apk
           path: grpc-proxy-tester/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      # E2E в Gramzes/GrpcInterceptor берёт этот APK вместо сборки Gradle'ом,
+      # если tree.txt совпадает с деревом grpc-proxy-tester/ у него в checkout.
+      # tree.txt грузится после APK: пока он старый, там соберут сами.
+      - name: Опубликовать APK для E2E GrpcInterceptor
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git rev-parse HEAD:grpc-proxy-tester > "$RUNNER_TEMP/tree.txt"
+          cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/app-debug.apk"
+          gh release view proxy-tester-apk >/dev/null 2>&1 || \
+            gh release create proxy-tester-apk --prerelease --target master \
+              --title "grpc-proxy-tester APK (master)" \
+              --notes "Debug APK grpc-proxy-tester с последнего master. Обновляется CI."
+          gh release upload proxy-tester-apk "$RUNNER_TEMP/app-debug.apk" --clobber
+          gh release upload proxy-tester-apk "$RUNNER_TEMP/tree.txt" --clobber
 
       - name: Отчёты при ошибке
         if: failure()
